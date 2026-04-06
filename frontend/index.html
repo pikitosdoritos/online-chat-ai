@@ -27,14 +27,24 @@
         <ul id="messageList" class="message-list" aria-live="polite"></ul>
 
         <form id="messageForm" class="message-form" autocomplete="off">
-          <input
-            id="messageInput"
-            type="text"
-            maxlength="1000"
-            placeholder="Type your message..."
-            required
-          />
-          <button type="submit" id="sendButton">Send</button>
+          <div class="input-stack">
+            <div class="input-row">
+              <button type="button" id="emojiToggle" class="icon-btn" aria-label="Toggle emoji picker">
+                🙂
+              </button>
+              <label for="fileInput" class="icon-btn" aria-label="Upload file">📎</label>
+              <input id="fileInput" type="file" hidden />
+              <input
+                id="messageInput"
+                type="text"
+                maxlength="1000"
+                placeholder="Type your message..."
+              />
+              <button type="submit" id="sendButton">Send</button>
+            </div>
+            <div id="emojiPicker" class="emoji-picker hidden"></div>
+            <div id="uploadStatus" class="upload-status hidden"></div>
+          </div>
         </form>
       </section>
     </main>

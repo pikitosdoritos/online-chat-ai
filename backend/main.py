@@ -1,8 +1,10 @@
-from datetime import datetime
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +17,17 @@ from .models import Message
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
+UPLOADS_DIR = BASE_DIR / "uploads"
+MAX_MESSAGE_LENGTH = 1000
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+ALLOWED_EXTENSIONS: dict[str, set[str]] = {
+    "image": {".jpg", ".jpeg", ".png"},
+    "video": {".mp4"},
+    "audio": {".mp3", ".wav"},
+    "file": {".pdf", ".txt", ".doc", ".docx", ".zip"},
+}
+ALL_ALLOWED_EXTENSIONS = set().union(*ALLOWED_EXTENSIONS.values())
 
 app = FastAPI(title="Online Chat AI", version="1.0.0")
 
@@ -56,8 +69,42 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+def now_utc() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def serialize_message(message: Message) -> dict[str, Any]:
+    return {
+        "id": message.id,
+        "username": message.username,
+        "content": message.content,
+        "message_type": message.message_type,
+        "file_path": message.file_path,
+        "original_file_name": message.original_file_name,
+        "edited": bool(message.edited),
+        "deleted": bool(message.deleted),
+        "created_at": message.created_at.isoformat() if message.created_at else None,
+        "updated_at": message.updated_at.isoformat() if message.updated_at else None,
+    }
+
+
+def normalize_message_type(message_type: str) -> str:
+    normalized = (message_type or "text").strip().lower()
+    if normalized not in {"text", "image", "video", "audio", "file"}:
+        raise ValueError("Invalid message type.")
+    return normalized
+
+
+def detect_file_type(extension: str) -> str:
+    for message_type, extensions in ALLOWED_EXTENSIONS.items():
+        if extension in extensions:
+            return message_type
+    raise ValueError("Unsupported file type.")
+
+
 @app.on_event("startup")
 def on_startup() -> None:
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     init_db()
 
 
@@ -69,15 +116,35 @@ def get_messages(
     statement = select(Message).order_by(Message.created_at.desc(), Message.id.desc()).limit(limit)
     rows = db.execute(statement).scalars().all()
     rows.reverse()
-    return [
-        {
-            "id": message.id,
-            "username": message.username,
-            "content": message.content,
-            "created_at": message.created_at.isoformat(),
-        }
-        for message in rows
-    ]
+    return [serialize_message(message) for message in rows]
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    original_name = (file.filename or "").strip()
+    if not original_name:
+        raise HTTPException(status_code=400, detail="Missing file name.")
+
+    extension = Path(original_name).suffix.lower()
+    if extension not in ALL_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="File type is not allowed.")
+
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="File is empty.")
+    if len(content) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="File too large (max 10MB).")
+
+    safe_name = f"{uuid4().hex}{extension}"
+    disk_path = UPLOADS_DIR / safe_name
+    disk_path.write_bytes(content)
+
+    return {
+        "file_path": f"/uploads/{safe_name}",
+        "message_type": detect_file_type(extension),
+        "original_file_name": Path(original_name).name,
+        "size_bytes": len(content),
+    }
 
 
 @app.websocket("/ws/chat")
@@ -103,33 +170,117 @@ async def websocket_chat(websocket: WebSocket):
 
     try:
         while True:
-            text = (await websocket.receive_text()).strip()
-            if not text:
-                continue
-            if len(text) > 1000:
+            raw = await websocket.receive_text()
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
                 await websocket.send_json(
                     {
                         "type": "error",
-                        "message": "Message is too long (max 1000 characters).",
+                        "message": "Invalid message format.",
                     }
                 )
                 continue
 
-            with SessionLocal() as db:
-                message = Message(username=username, content=text)
-                db.add(message)
-                db.commit()
-                db.refresh(message)
+            action = (payload.get("action") or "").strip().lower()
+            if action not in {"send", "edit", "delete"}:
+                await websocket.send_json({"type": "error", "message": "Unsupported action."})
+                continue
 
-            await manager.broadcast(
-                {
-                    "type": "message",
-                    "id": message.id,
-                    "username": message.username,
-                    "content": message.content,
-                    "created_at": message.created_at.isoformat(),
-                }
-            )
+            if action == "send":
+                content = (payload.get("content") or "").strip()
+                message_type = normalize_message_type(payload.get("message_type", "text"))
+                file_path = payload.get("file_path")
+                original_file_name = payload.get("original_file_name")
+
+                if message_type == "text":
+                    if not content:
+                        continue
+                    if len(content) > MAX_MESSAGE_LENGTH:
+                        await websocket.send_json(
+                            {"type": "error", "message": "Message is too long (max 1000 characters)."}
+                        )
+                        continue
+                    file_path = None
+                    original_file_name = None
+                else:
+                    if not isinstance(file_path, str) or not file_path.startswith("/uploads/"):
+                        await websocket.send_json({"type": "error", "message": "Invalid uploaded file path."})
+                        continue
+                    candidate = (BASE_DIR / file_path.lstrip("/")).resolve()
+                    if not candidate.exists() or UPLOADS_DIR.resolve() not in candidate.parents:
+                        await websocket.send_json({"type": "error", "message": "Uploaded file not found."})
+                        continue
+                    if not content:
+                        content = original_file_name or "Shared a file"
+                    if len(content) > MAX_MESSAGE_LENGTH:
+                        content = content[:MAX_MESSAGE_LENGTH]
+
+                with SessionLocal() as db:
+                    message = Message(
+                        username=username,
+                        content=content,
+                        message_type=message_type,
+                        file_path=file_path,
+                        original_file_name=original_file_name,
+                        edited=False,
+                        deleted=False,
+                    )
+                    db.add(message)
+                    db.commit()
+                    db.refresh(message)
+
+                await manager.broadcast({"type": "message_created", "message": serialize_message(message)})
+                continue
+
+            message_id = payload.get("id")
+            if not isinstance(message_id, int):
+                await websocket.send_json({"type": "error", "message": "Invalid message id."})
+                continue
+
+            with SessionLocal() as db:
+                message = db.get(Message, message_id)
+                if not message:
+                    await websocket.send_json({"type": "error", "message": "Message not found."})
+                    continue
+                if message.username != username:
+                    await websocket.send_json({"type": "error", "message": "You can only change your own messages."})
+                    continue
+                if message.deleted:
+                    await websocket.send_json({"type": "error", "message": "Message already deleted."})
+                    continue
+
+                if action == "edit":
+                    if message.message_type != "text":
+                        await websocket.send_json({"type": "error", "message": "Only text messages can be edited."})
+                        continue
+                    new_content = (payload.get("content") or "").strip()
+                    if not new_content:
+                        await websocket.send_json({"type": "error", "message": "Edited message cannot be empty."})
+                        continue
+                    if len(new_content) > MAX_MESSAGE_LENGTH:
+                        await websocket.send_json(
+                            {"type": "error", "message": "Message is too long (max 1000 characters)."}
+                        )
+                        continue
+                    message.content = new_content
+                    message.edited = True
+                    message.updated_at = now_utc()
+                    db.commit()
+                    db.refresh(message)
+                    await manager.broadcast({"type": "message_updated", "message": serialize_message(message)})
+                    continue
+
+                if action == "delete":
+                    message.content = "Message deleted"
+                    message.file_path = None
+                    message.original_file_name = None
+                    message.deleted = True
+                    message.edited = False
+                    message.updated_at = now_utc()
+                    db.commit()
+                    db.refresh(message)
+                    await manager.broadcast({"type": "message_deleted", "message": serialize_message(message)})
     except WebSocketDisconnect:
         disconnected_user = manager.disconnect(websocket)
         if disconnected_user:
@@ -156,3 +307,4 @@ def serve_index():
 
 
 app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
