@@ -17,6 +17,8 @@ let socket = null;
 let reconnectTimer = null;
 let pendingUpload = null;
 let audioContext = null;
+let participantUsernames = [];
+const userColorMap = new Map();
 
 const EMOJIS = ["😀", "😂", "😍", "😎", "🤖", "🔥", "🎉", "👍", "🙏", "❤️", "👀", "💡"];
 
@@ -45,53 +47,92 @@ function showPresence(text) {
   }, 2200);
 }
 
-function getUserColor(usernameValue) {
-  const palette = [
-    "#60A5FA",
-    "#34D399",
-    "#F472B6",
-    "#FBBF24",
-    "#A78BFA",
-    "#22D3EE",
-    "#FB7185",
-    "#4ADE80",
-    "#F97316",
-    "#818CF8",
-  ];
-  if (!usernameValue) return palette[0];
-  let total = 0;
+function hashUsername(usernameValue) {
+  let hash = 0;
   for (let i = 0; i < usernameValue.length; i += 1) {
-    total += (i + 1) * usernameValue.charCodeAt(i);
+    hash = (hash * 31 + usernameValue.charCodeAt(i)) % 360;
   }
-  return palette[total % palette.length];
+  return Math.abs(hash);
+}
+
+function rebuildUserColors() {
+  const namesFromMessages = Array.from(document.querySelectorAll("[data-username]"))
+    .map((node) => node.getAttribute("data-username"))
+    .filter(Boolean);
+  const allNames = [...new Set([...participantUsernames, ...namesFromMessages])].sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  const usedHues = new Set();
+  userColorMap.clear();
+  for (const name of allNames) {
+    let hue = hashUsername(name);
+    while (usedHues.has(hue)) {
+      hue = (hue + 29) % 360;
+    }
+    usedHues.add(hue);
+    userColorMap.set(name, `hsl(${hue} 85% 60%)`);
+  }
+}
+
+function getUserColor(usernameValue) {
+  return userColorMap.get(usernameValue) || "#60A5FA";
 }
 
 function getMessageColor(message) {
-  return message.user_color || getUserColor(message.username);
+  return getUserColor(message.username);
 }
 
-function hexToRgba(hexColor, alpha) {
-  const clean = (hexColor || "").replace("#", "").trim();
-  if (!/^[0-9a-fA-F]{6}$/.test(clean)) {
-    return `rgba(255, 255, 255, ${alpha})`;
+function colorToRgba(colorValue, alpha) {
+  if (colorValue.startsWith("#")) {
+    const clean = colorValue.replace("#", "").trim();
+    if (!/^[0-9a-fA-F]{6}$/.test(clean)) {
+      return `rgba(255, 255, 255, ${alpha})`;
+    }
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  if (colorValue.startsWith("hsl(")) {
+    return colorValue.replace("hsl(", "hsla(").replace(")", ` / ${alpha})`);
+  }
+  return `rgba(255, 255, 255, ${alpha})`;
+}
+
+function refreshMessageColors() {
+  const items = document.querySelectorAll("[data-message-id]");
+  for (const item of items) {
+    const author = item.getAttribute("data-username") || "";
+    const bubble = item.querySelector(".message-bubble");
+    if (!author || !bubble) continue;
+    const color = getUserColor(author);
+    bubble.style.setProperty("--message-bg", colorToRgba(color, 0.12));
+    bubble.style.setProperty("--message-border", colorToRgba(color, 0.33));
+    bubble.style.setProperty("--message-bg-own", colorToRgba(color, 0.2));
+    bubble.style.setProperty("--message-border-own", colorToRgba(color, 0.5));
+    const dot = item.querySelector(".author-dot");
+    if (dot) {
+      dot.style.background = color;
+    }
+  }
 }
 
 function renderParticipants(participants) {
+  participantUsernames = (participants || []).map((participant) => participant.username).filter(Boolean);
+  rebuildUserColors();
   participantsList.innerHTML = "";
-  for (const participant of participants) {
+  for (const participant of participants || []) {
     const li = document.createElement("li");
     li.className = "participant-item";
+    const participantColor = getUserColor(participant.username);
     li.innerHTML = `
-      <span class="participant-dot" style="background:${escapeHtml(participant.color || getUserColor(participant.username))};"></span>
+      <span class="participant-dot" style="background:${escapeHtml(participantColor)};"></span>
       <span>${escapeHtml(participant.username)}</span>
     `;
     participantsList.appendChild(li);
   }
+  refreshMessageColors();
 }
 
 function playSendSound() {
@@ -135,14 +176,14 @@ function actionButtonsMarkup(message, isOwnMessage) {
   if (!isOwnMessage || message.deleted) return "";
   const canEdit = message.message_type === "text";
   return `
-    <div class="message-actions">
+    <div class="message-side-actions">
       ${canEdit ? '<button type="button" class="action-btn" data-action="edit">Edit</button>' : ""}
-      <button type="button" class="action-btn" data-action="delete">Delete</button>
+      <button type="button" class="action-btn danger" data-action="delete">Delete</button>
     </div>
   `;
 }
 
-function messageTemplate(message, isOwnMessage = false) {
+function bubbleTemplate(message) {
   const editedLabel = message.edited ? '<span class="edited-label">(edited)</span>' : "";
   const authorColor = getMessageColor(message);
   return `
@@ -153,25 +194,37 @@ function messageTemplate(message, isOwnMessage = false) {
     <p class="message-content">${escapeHtml(message.content || "")}</p>
     ${mediaMarkup(message)}
     <div class="message-time">${formatTime(message.created_at)} ${editedLabel}</div>
-    ${actionButtonsMarkup(message, isOwnMessage)}
   `;
 }
 
 function createOrUpdateMessage(message) {
-  const isOwnMessage = message.username === username;
-  const baseColor = getMessageColor(message);
   let item = document.querySelector(`[data-message-id="${message.id}"]`);
   if (!item) {
     item = document.createElement("li");
     item.dataset.messageId = String(message.id);
     messageList.appendChild(item);
   }
-  item.className = `message ${isOwnMessage ? "own" : ""} ${message.deleted ? "deleted" : ""}`;
-  item.style.setProperty("--message-bg", hexToRgba(baseColor, 0.12));
-  item.style.setProperty("--message-border", hexToRgba(baseColor, 0.33));
-  item.style.setProperty("--message-bg-own", hexToRgba(baseColor, 0.2));
-  item.style.setProperty("--message-border-own", hexToRgba(baseColor, 0.5));
-  item.innerHTML = messageTemplate(message, isOwnMessage);
+
+  item.dataset.username = message.username;
+  const isOwnMessage = message.username === username;
+  const baseColor = getMessageColor(message);
+  item.className = `message-item ${isOwnMessage ? "own" : ""} ${message.deleted ? "deleted" : ""}`;
+  item.innerHTML = `
+    <div class="message-shell">
+      ${actionButtonsMarkup(message, isOwnMessage)}
+      <div class="message-bubble ${isOwnMessage ? "own" : ""} ${message.deleted ? "deleted" : ""}">
+        ${bubbleTemplate(message)}
+      </div>
+    </div>
+  `;
+
+  const bubble = item.querySelector(".message-bubble");
+  if (bubble) {
+    bubble.style.setProperty("--message-bg", colorToRgba(baseColor, 0.12));
+    bubble.style.setProperty("--message-border", colorToRgba(baseColor, 0.33));
+    bubble.style.setProperty("--message-bg-own", colorToRgba(baseColor, 0.2));
+    bubble.style.setProperty("--message-border-own", colorToRgba(baseColor, 0.5));
+  }
   messageList.scrollTop = messageList.scrollHeight;
 }
 
@@ -182,9 +235,13 @@ async function loadHistory() {
   }
   const messages = await response.json();
   messageList.innerHTML = "";
+  const uniqueNames = [...new Set(messages.map((message) => message.username).filter(Boolean))];
+  participantUsernames = [...new Set([...participantUsernames, ...uniqueNames])];
+  rebuildUserColors();
   for (const message of messages) {
     createOrUpdateMessage(message);
   }
+  refreshMessageColors();
 }
 
 function getSocketUrl() {
