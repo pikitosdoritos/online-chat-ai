@@ -158,18 +158,31 @@ body {
   gap: 12px;
 }
 
-.message {
+.message-item {
+  display: flex;
+}
+
+.message-item.own {
+  justify-content: flex-end;
+}
+
+.message-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(82%, 680px);
+}
+
+.message-bubble {
   max-width: min(72%, 560px);
   padding: 10px 12px;
   border-radius: 16px;
   border: 1px solid var(--message-border, rgba(255, 255, 255, 0.12));
   background: var(--message-bg, var(--bubble-other));
   animation: slideUp 0.2s ease;
-  position: relative;
 }
 
-.message.own {
-  margin-left: auto;
+.message-bubble.own {
   background: var(--message-bg-own, var(--bubble-own));
   border-color: var(--message-border-own, rgba(147, 197, 253, 0.36));
 }
@@ -196,7 +209,7 @@ body {
   line-height: 1.4;
 }
 
-.message.deleted .message-content {
+.message-bubble.deleted .message-content {
   opacity: 0.72;
   font-style: italic;
 }
@@ -213,27 +226,28 @@ body {
   opacity: 0.9;
 }
 
-.message-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+.message-side-actions {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  opacity: 0;
-  transition: opacity 0.16s ease;
-}
-
-.message:hover .message-actions {
-  opacity: 1;
 }
 
 .action-btn {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(15, 23, 42, 0.6);
-  color: var(--text-main);
-  font-size: 0.72rem;
-  padding: 4px 8px;
+  min-width: 74px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: 0.74rem;
+  line-height: 1;
+  padding: 7px 10px;
   border-radius: 10px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.action-btn.danger {
+  background: rgba(127, 29, 29, 0.95);
+  border-color: rgba(252, 165, 165, 0.55);
 }
 
 .media-preview {
@@ -371,6 +385,11 @@ button.action-btn {
   font-weight: 500;
 }
 
+button.action-btn,
+button.action-btn.danger {
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.45);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -442,6 +461,14 @@ button.action-btn {
 
   .message {
     max-width: 86%;
+  }
+
+  .message-shell {
+    max-width: 92%;
+  }
+
+  .message-bubble {
+    max-width: 100%;
   }
 
   .participants-panel {
