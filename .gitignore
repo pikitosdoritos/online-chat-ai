@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 chat.db
 .venv/
+uploads/*
+!uploads/.gitkeep
