@@ -120,6 +120,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: var(--bubble-other);
   animation: slideUp 0.2s ease;
+  position: relative;
 }
 
 .message.own {
@@ -140,6 +141,11 @@ body {
   line-height: 1.4;
 }
 
+.message.deleted .message-content {
+  opacity: 0.72;
+  font-style: italic;
+}
+
 .message-time {
   margin-top: 6px;
   font-size: 0.72rem;
@@ -147,10 +153,108 @@ body {
   opacity: 0.85;
 }
 
+.edited-label {
+  margin-left: 6px;
+  opacity: 0.9;
+}
+
+.message-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.message:hover .message-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text-main);
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 10px;
+}
+
+.media-preview {
+  width: min(320px, 100%);
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.file-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
 .message-form {
+  display: block;
+}
+
+.input-stack {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
+  gap: 8px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  user-select: none;
+}
+
+.emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.emoji-option {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.upload-status {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.hidden {
+  display: none;
 }
 
 input,
