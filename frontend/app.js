@@ -10,11 +10,13 @@ const emojiToggle = document.getElementById("emojiToggle");
 const emojiPicker = document.getElementById("emojiPicker");
 const fileInput = document.getElementById("fileInput");
 const uploadStatus = document.getElementById("uploadStatus");
+const participantsList = document.getElementById("participantsList");
 
 let username = "";
 let socket = null;
 let reconnectTimer = null;
 let pendingUpload = null;
+let audioContext = null;
 
 const EMOJIS = ["😀", "😂", "😍", "😎", "🤖", "🔥", "🎉", "👍", "🙏", "❤️", "👀", "💡"];
 
@@ -41,6 +43,67 @@ function showPresence(text) {
   setTimeout(() => {
     presenceBanner.classList.add("hidden");
   }, 2200);
+}
+
+function getUserColor(usernameValue) {
+  const palette = [
+    "#60A5FA",
+    "#34D399",
+    "#F472B6",
+    "#FBBF24",
+    "#A78BFA",
+    "#22D3EE",
+    "#FB7185",
+    "#4ADE80",
+    "#F97316",
+    "#818CF8",
+  ];
+  if (!usernameValue) return palette[0];
+  let total = 0;
+  for (let i = 0; i < usernameValue.length; i += 1) {
+    total += (i + 1) * usernameValue.charCodeAt(i);
+  }
+  return palette[total % palette.length];
+}
+
+function getMessageColor(message) {
+  return message.user_color || getUserColor(message.username);
+}
+
+function renderParticipants(participants) {
+  participantsList.innerHTML = "";
+  for (const participant of participants) {
+    const li = document.createElement("li");
+    li.className = "participant-item";
+    li.innerHTML = `
+      <span class="participant-dot" style="background:${escapeHtml(participant.color || getUserColor(participant.username))};"></span>
+      <span>${escapeHtml(participant.username)}</span>
+    `;
+    participantsList.appendChild(li);
+  }
+}
+
+function playSendSound() {
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const now = audioContext.currentTime;
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(820, now);
+    oscillator.frequency.exponentialRampToValueAtTime(560, now + 0.08);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.1);
+  } catch (error) {
+    // Ignore audio issues on unsupported browsers.
+  }
 }
 
 function mediaMarkup(message) {
@@ -70,9 +133,12 @@ function actionButtonsMarkup(message, isOwnMessage) {
 
 function messageTemplate(message, isOwnMessage = false) {
   const editedLabel = message.edited ? '<span class="edited-label">(edited)</span>' : "";
-  const deletedClass = message.deleted ? "deleted" : "";
+  const authorColor = getMessageColor(message);
   return `
-    <div class="message-author">${escapeHtml(message.username)}</div>
+    <div class="message-author">
+      <span class="author-dot" style="background:${escapeHtml(authorColor)};"></span>
+      ${escapeHtml(message.username)}
+    </div>
     <p class="message-content">${escapeHtml(message.content || "")}</p>
     ${mediaMarkup(message)}
     <div class="message-time">${formatTime(message.created_at)} ${editedLabel}</div>
@@ -141,6 +207,10 @@ function connectWebSocket() {
       } else if (payload.event === "leave") {
         showPresence(`${payload.username} left (${payload.connected_count} online)`);
       }
+      return;
+    }
+    if (payload.type === "participants_update") {
+      renderParticipants(payload.participants || []);
       return;
     }
     if (payload.type === "error") {
@@ -218,6 +288,7 @@ messageForm.addEventListener("submit", (event) => {
       original_file_name: pendingUpload.original_file_name,
     });
     if (!sent) return;
+    playSendSound();
     pendingUpload = null;
     fileInput.value = "";
     setUploadStatus("");
@@ -231,6 +302,7 @@ messageForm.addEventListener("submit", (event) => {
     message_type: "text",
   });
   if (!sent) return;
+  playSendSound();
   messageInput.value = "";
 });
 

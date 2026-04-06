@@ -51,7 +51,8 @@ body {
 .chat-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .chat-header h1 {
@@ -89,6 +90,50 @@ body {
 .status.offline {
   color: #fca5a5;
   border-color: rgba(252, 165, 165, 0.45);
+}
+
+.header-right {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.participants-panel {
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.participants-title {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.participants-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.participant-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.participant-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .presence-banner {
@@ -131,8 +176,18 @@ body {
 
 .message-author {
   font-size: 0.78rem;
-  color: var(--text-soft);
+  color: var(--text-main);
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.author-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .message-content {
@@ -216,8 +271,8 @@ body {
 }
 
 .icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -225,11 +280,13 @@ body {
   background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
   user-select: none;
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 .emoji-picker {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
   gap: 6px;
   padding: 10px;
   border-radius: 14px;
@@ -238,14 +295,17 @@ body {
 }
 
 .emoji-option {
-  width: 34px;
-  height: 34px;
+  width: 100%;
+  min-height: 36px;
   border-radius: 9px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.08);
   display: grid;
   place-items: center;
   cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
 }
 
 .upload-status {
@@ -284,12 +344,31 @@ button {
   transition: transform 0.16s ease, filter 0.16s ease;
 }
 
+#sendButton {
+  min-width: 112px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(147, 197, 253, 0.55);
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.32);
+  font-size: 0.98rem;
+  letter-spacing: 0.01em;
+}
+
 button:hover {
   filter: brightness(1.06);
 }
 
 button:active {
   transform: translateY(1px);
+}
+
+button.icon-btn,
+button.emoji-option,
+button.action-btn {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.18);
+  font-weight: 500;
 }
 
 .modal-backdrop {
@@ -363,5 +442,13 @@ button:active {
 
   .message {
     max-width: 86%;
+  }
+
+  .participants-panel {
+    min-width: 140px;
+  }
+
+  #sendButton {
+    min-width: 92px;
   }
 }

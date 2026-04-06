@@ -65,6 +65,9 @@ class ConnectionManager:
     def connected_count(self) -> int:
         return len(self.active_connections)
 
+    def get_participants(self) -> list[str]:
+        return sorted(set(self.active_connections.values()), key=str.lower)
+
 
 manager = ConnectionManager()
 
@@ -85,7 +88,29 @@ def serialize_message(message: Message) -> dict[str, Any]:
         "deleted": bool(message.deleted),
         "created_at": message.created_at.isoformat() if message.created_at else None,
         "updated_at": message.updated_at.isoformat() if message.updated_at else None,
+        "user_color": get_user_color(message.username),
     }
+
+
+def get_user_color(username: str) -> str:
+    palette = [
+        "#60A5FA",
+        "#34D399",
+        "#F472B6",
+        "#FBBF24",
+        "#A78BFA",
+        "#22D3EE",
+        "#FB7185",
+        "#4ADE80",
+        "#F97316",
+        "#818CF8",
+    ]
+    if not username:
+        return palette[0]
+    total = 0
+    for idx, char in enumerate(username):
+        total += (idx + 1) * ord(char)
+    return palette[total % len(palette)]
 
 
 def normalize_message_type(message_type: str) -> str:
@@ -158,13 +183,32 @@ async def websocket_chat(websocket: WebSocket):
         return
 
     await manager.connect(websocket, username)
+    participants = manager.get_participants()
+    await websocket.send_json(
+        {
+            "type": "participants_update",
+            "participants": [
+                {"username": participant, "color": get_user_color(participant)} for participant in participants
+            ],
+        }
+    )
     await manager.broadcast(
         {
             "type": "presence",
             "event": "join",
             "username": username,
+            "user_color": get_user_color(username),
             "timestamp": datetime.utcnow().isoformat(),
             "connected_count": manager.connected_count,
+        }
+    )
+    await manager.broadcast(
+        {
+            "type": "participants_update",
+            "participants": [
+                {"username": participant, "color": get_user_color(participant)}
+                for participant in manager.get_participants()
+            ],
         }
     )
 
@@ -289,8 +333,18 @@ async def websocket_chat(websocket: WebSocket):
                     "type": "presence",
                     "event": "leave",
                     "username": disconnected_user,
+                    "user_color": get_user_color(disconnected_user),
                     "timestamp": datetime.utcnow().isoformat(),
                     "connected_count": manager.connected_count,
+                }
+            )
+            await manager.broadcast(
+                {
+                    "type": "participants_update",
+                    "participants": [
+                        {"username": participant, "color": get_user_color(participant)}
+                        for participant in manager.get_participants()
+                    ],
                 }
             )
     except Exception:
