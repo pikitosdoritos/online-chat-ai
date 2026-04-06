@@ -313,6 +313,9 @@ body {
 
 .message-form {
   display: block;
+  position: sticky;
+  bottom: 0;
+  background: inherit;
 }
 
 .input-stack {
@@ -354,7 +357,7 @@ body {
 }
 
 #emojiToggle .icon-glyph {
-  transform: translateY(-1px);
+  transform: translateY(0);
 }
 
 .emoji-picker {

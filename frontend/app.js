@@ -167,6 +167,29 @@ function playSendSound() {
   }
 }
 
+function playReceiveSound() {
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const now = audioContext.currentTime;
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(440, now);
+    oscillator.frequency.exponentialRampToValueAtTime(660, now + 0.1);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.13);
+  } catch (error) {
+    // Ignore audio issues on unsupported browsers.
+  }
+}
+
 function mediaMarkup(message) {
   if (!message.file_path || message.deleted) return "";
   if (message.message_type === "image") {
@@ -278,6 +301,10 @@ function connectWebSocket() {
     const payload = JSON.parse(event.data);
     if (payload.type === "message_created") {
       createOrUpdateMessage(payload.message);
+      // Play receive sound only for messages from other users
+      if (payload.message.username !== username) {
+        playReceiveSound();
+      }
       return;
     }
     if (payload.type === "message_updated") {
