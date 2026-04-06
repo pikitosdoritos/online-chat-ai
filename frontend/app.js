@@ -11,6 +11,13 @@ const emojiPicker = document.getElementById("emojiPicker");
 const fileInput = document.getElementById("fileInput");
 const uploadStatus = document.getElementById("uploadStatus");
 const participantsList = document.getElementById("participantsList");
+const editModal = document.getElementById("editModal");
+const editForm = document.getElementById("editForm");
+const editInput = document.getElementById("editInput");
+const editCancelBtn = document.getElementById("editCancelBtn");
+const deleteModal = document.getElementById("deleteModal");
+const deleteConfirmBtn = document.getElementById("deleteConfirmBtn");
+const deleteCancelBtn = document.getElementById("deleteCancelBtn");
 
 let username = "";
 let socket = null;
@@ -18,7 +25,9 @@ let reconnectTimer = null;
 let pendingUpload = null;
 let audioContext = null;
 let participantUsernames = [];
+let activeMessageId = null;
 const userColorMap = new Map();
+const USERNAME_STORAGE_KEY = "glass_chat_username";
 
 const EMOJIS = ["😀", "😂", "😍", "😎", "🤖", "🔥", "🎉", "👍", "🙏", "❤️", "👀", "💡"];
 
@@ -186,7 +195,12 @@ function actionButtonsMarkup(message, isOwnMessage) {
 function bubbleTemplate(message) {
   const editedLabel = message.edited ? '<span class="edited-label">(edited)</span>' : "";
   const authorColor = getMessageColor(message);
+  const ownMessageMenu =
+    message.username === username && !message.deleted
+      ? '<button type="button" class="message-menu-btn" data-action="toggle-menu" aria-label="Message actions">⋯</button>'
+      : "";
   return `
+    ${ownMessageMenu}
     <div class="message-author">
       <span class="author-dot" style="background:${escapeHtml(authorColor)};"></span>
       ${escapeHtml(message.username)}
@@ -316,6 +330,54 @@ function setUploadStatus(text) {
   uploadStatus.classList.remove("hidden");
 }
 
+function closeAllMessageMenus() {
+  document.querySelectorAll(".message-shell.menu-open").forEach((node) => {
+    node.classList.remove("menu-open");
+  });
+}
+
+function openEditDialog(messageId, currentText) {
+  activeMessageId = messageId;
+  editInput.value = currentText || "";
+  editModal.classList.remove("hidden");
+  setTimeout(() => {
+    editInput.focus();
+    editInput.select();
+  }, 0);
+}
+
+function closeEditDialog() {
+  activeMessageId = null;
+  editModal.classList.add("hidden");
+  editInput.value = "";
+}
+
+function openDeleteDialog(messageId) {
+  activeMessageId = messageId;
+  deleteModal.classList.remove("hidden");
+}
+
+function closeDeleteDialog() {
+  activeMessageId = null;
+  deleteModal.classList.add("hidden");
+}
+
+async function startChatSession(chosenUsername) {
+  username = chosenUsername.trim();
+  if (!username) return;
+  localStorage.setItem(USERNAME_STORAGE_KEY, username);
+  usernameModal.style.display = "none";
+  usernameInput.value = username;
+
+  try {
+    await loadHistory();
+  } catch (error) {
+    showPresence("History unavailable, continuing without it.");
+  }
+  connectWebSocket();
+  messageInput.focus();
+}
+
 function buildEmojiPicker() {
   emojiPicker.innerHTML = "";
   for (const emoji of EMOJIS) {
@@ -335,16 +397,7 @@ usernameForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const value = usernameInput.value.trim();
   if (!value) return;
-  username = value;
-  usernameModal.style.display = "none";
-
-  try {
-    await loadHistory();
-  } catch (error) {
-    showPresence("History unavailable, continuing without it.");
-  }
-  connectWebSocket();
-  messageInput.focus();
+  await startChatSession(value);
 });
 
 messageForm.addEventListener("submit", (event) => {
@@ -415,30 +468,83 @@ messageList.addEventListener("click", (event) => {
   if (!item) return;
   const messageId = Number(item.getAttribute("data-message-id"));
   if (!Number.isFinite(messageId)) return;
+  const shell = item.querySelector(".message-shell");
+
+  if (action === "toggle-menu") {
+    const isOpen = shell && shell.classList.contains("menu-open");
+    closeAllMessageMenus();
+    if (shell && !isOpen) {
+      shell.classList.add("menu-open");
+    }
+    return;
+  }
 
   if (action === "edit") {
     const currentTextNode = item.querySelector(".message-content");
     const currentText = currentTextNode ? currentTextNode.textContent || "" : "";
-    const next = window.prompt("Edit your message", currentText);
-    if (next === null) return;
-    const trimmed = next.trim();
-    if (!trimmed) return;
-    sendSocketPayload({
-      action: "edit",
-      id: messageId,
-      content: trimmed,
-    });
+    closeAllMessageMenus();
+    openEditDialog(messageId, currentText);
     return;
   }
 
   if (action === "delete") {
-    const confirmed = window.confirm("Delete this message?");
-    if (!confirmed) return;
-    sendSocketPayload({
-      action: "delete",
-      id: messageId,
-    });
+    closeAllMessageMenus();
+    openDeleteDialog(messageId);
   }
 });
+
+editForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const trimmed = editInput.value.trim();
+  if (!trimmed || !Number.isFinite(activeMessageId)) return;
+  sendSocketPayload({
+    action: "edit",
+    id: activeMessageId,
+    content: trimmed,
+  });
+  closeEditDialog();
+});
+
+editCancelBtn.addEventListener("click", () => {
+  closeEditDialog();
+});
+
+deleteCancelBtn.addEventListener("click", () => {
+  closeDeleteDialog();
+});
+
+deleteConfirmBtn.addEventListener("click", () => {
+  if (!Number.isFinite(activeMessageId)) return;
+  sendSocketPayload({
+    action: "delete",
+    id: activeMessageId,
+  });
+  closeDeleteDialog();
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest(".message-shell")) {
+    closeAllMessageMenus();
+  }
+});
+
+editModal.addEventListener("click", (event) => {
+  if (event.target === editModal) {
+    closeEditDialog();
+  }
+});
+
+deleteModal.addEventListener("click", (event) => {
+  if (event.target === deleteModal) {
+    closeDeleteDialog();
+  }
+});
+
+const rememberedUsername = localStorage.getItem(USERNAME_STORAGE_KEY);
+if (rememberedUsername && rememberedUsername.trim()) {
+  startChatSession(rememberedUsername.trim());
+}
 
 buildEmojiPicker();

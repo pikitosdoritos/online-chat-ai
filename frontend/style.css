@@ -168,7 +168,7 @@ body {
 
 .message-shell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   max-width: min(82%, 680px);
 }
@@ -180,6 +180,7 @@ body {
   border: 1px solid var(--message-border, rgba(255, 255, 255, 0.12));
   background: var(--message-bg, var(--bubble-other));
   animation: slideUp 0.2s ease;
+  position: relative;
 }
 
 .message-bubble.own {
@@ -227,9 +228,35 @@ body {
 }
 
 .message-side-actions {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 6px;
+  margin-top: 28px;
+}
+
+.message-shell.menu-open .message-side-actions {
+  display: flex;
+}
+
+.message-menu-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.66);
+  color: #e2e8f0;
+  line-height: 1;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.message-menu-btn:hover {
+  filter: brightness(1.12);
 }
 
 .action-btn {
@@ -406,6 +433,26 @@ button.action-btn.danger {
   background: rgba(30, 41, 59, 0.65);
   box-shadow: var(--shadow);
   padding: 24px;
+}
+
+.modal-compact {
+  width: min(460px, calc(100% - 32px));
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.secondary-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.danger-btn {
+  background: rgba(153, 27, 27, 0.95);
+  border-color: rgba(252, 165, 165, 0.6);
 }
 
 .modal-card h2 {
