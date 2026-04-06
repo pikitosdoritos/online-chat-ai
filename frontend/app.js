@@ -541,7 +541,15 @@ deleteConfirmBtn.addEventListener("click", () => {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (!target.closest(".message-shell")) {
+  const clickedMenuButton = target.closest(".message-menu-btn");
+  const clickedActions = target.closest(".message-side-actions");
+  if (!clickedMenuButton && !clickedActions) {
+    closeAllMessageMenus();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
     closeAllMessageMenus();
   }
 });

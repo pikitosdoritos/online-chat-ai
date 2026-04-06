@@ -248,11 +248,6 @@ body {
   display: flex;
 }
 
-.message-shell.menu-open .message-menu-btn {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .message-menu-btn {
   position: absolute;
   top: 8px;
@@ -269,6 +264,11 @@ body {
   place-items: center;
   font-weight: 700;
   transition: opacity 0.12s ease;
+}
+
+.message-shell.menu-open .message-menu-btn {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(147, 197, 253, 0.55);
 }
 
 .message-menu-btn:hover {
