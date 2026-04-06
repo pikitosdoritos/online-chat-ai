@@ -352,6 +352,25 @@ async def websocket_chat(websocket: WebSocket):
         await websocket.close(code=1011)
 
 
+@app.delete("/api/messages")
+def clear_all_messages(db: Session = Depends(get_db)):
+    """Clear all messages from the chat"""
+    try:
+        # Delete all messages
+        db.query(Message).delete()
+        db.commit()
+        
+        # Clear uploaded files
+        for file_path in UPLOADS_DIR.glob("*"):
+            if file_path.is_file():
+                file_path.unlink()
+        
+        return {"message": "All messages and files cleared successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to clear messages: {str(e)}")
+
+
 @app.get("/", response_class=FileResponse)
 def serve_index():
     index_path = FRONTEND_DIR / "index.html"

@@ -11,6 +11,11 @@ const emojiPicker = document.getElementById("emojiPicker");
 const fileInput = document.getElementById("fileInput");
 const uploadStatus = document.getElementById("uploadStatus");
 const participantsList = document.getElementById("participantsList");
+const clearChatBtn = document.getElementById("clearChatBtn");
+const confirmDialog = document.getElementById("confirmDialog");
+const confirmMessage = document.getElementById("confirmMessage");
+const confirmOk = document.getElementById("confirmOk");
+const confirmCancel = document.getElementById("confirmCancel");
 const editModal = document.getElementById("editModal");
 const editForm = document.getElementById("editForm");
 const editInput = document.getElementById("editInput");
@@ -607,5 +612,51 @@ const rememberedUsername = localStorage.getItem(USERNAME_STORAGE_KEY);
 if (rememberedUsername && rememberedUsername.trim()) {
   startChatSession(rememberedUsername.trim());
 }
+
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    confirmMessage.textContent = message;
+    confirmDialog.classList.remove("hidden");
+    
+    const handleOk = () => {
+      cleanup();
+      resolve(true);
+    };
+    
+    const handleCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+    
+    const cleanup = () => {
+      confirmDialog.classList.add("hidden");
+      confirmOk.removeEventListener("click", handleOk);
+      confirmCancel.removeEventListener("click", handleCancel);
+    };
+    
+    confirmOk.addEventListener("click", handleOk);
+    confirmCancel.addEventListener("click", handleCancel);
+  });
+}
+
+async function clearChat() {
+  try {
+    const response = await fetch("/api/messages", { method: "DELETE" });
+    if (!response.ok) {
+      throw new Error("Failed to clear chat");
+    }
+    messageList.innerHTML = "";
+    showPresence("Chat cleared by " + username);
+  } catch (error) {
+    showPresence("Failed to clear chat");
+  }
+}
+
+clearChatBtn.addEventListener("click", async () => {
+  const confirmed = await showConfirm("Are you sure you want to clear all messages? This cannot be undone.");
+  if (confirmed) {
+    clearChat();
+  }
+});
 
 buildEmojiPicker();
