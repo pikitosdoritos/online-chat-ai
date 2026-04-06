@@ -344,12 +344,17 @@ body {
 .icon-glyph {
   width: 20px;
   height: 20px;
+  display: block;
   stroke: #dbeafe;
   fill: none;
   stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
   pointer-events: none;
+}
+
+#emojiToggle .icon-glyph {
+  transform: translateY(-1px);
 }
 
 .emoji-picker {
