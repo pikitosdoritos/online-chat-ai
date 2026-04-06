@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Glass Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/frontend/style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="chat-card" aria-label="Chat application">
+        <header class="chat-header">
+          <div>
+            <p class="eyebrow">Realtime Room</p>
+            <h1>Glass Chat</h1>
+          </div>
+          <span id="statusBadge" class="status connecting">Connecting...</span>
+        </header>
+
+        <div id="presenceBanner" class="presence-banner hidden"></div>
+        <ul id="messageList" class="message-list" aria-live="polite"></ul>
+
+        <form id="messageForm" class="message-form" autocomplete="off">
+          <input
+            id="messageInput"
+            type="text"
+            maxlength="1000"
+            placeholder="Type your message..."
+            required
+          />
+          <button type="submit" id="sendButton">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <section id="usernameModal" class="modal-backdrop" aria-modal="true" role="dialog">
+      <div class="modal-card">
+        <h2>Join the chat</h2>
+        <p>Choose a username to start messaging in real time.</p>
+        <form id="usernameForm" class="username-form">
+          <input
+            id="usernameInput"
+            type="text"
+            maxlength="24"
+            placeholder="Your username"
+            required
+            autofocus
+          />
+          <button type="submit">Enter Room</button>
+        </form>
+      </div>
+    </section>
+
+    <script src="/frontend/app.js"></script>
+  </body>
+</html>
