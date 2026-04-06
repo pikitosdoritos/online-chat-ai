@@ -162,16 +162,16 @@ body {
   max-width: min(72%, 560px);
   padding: 10px 12px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--bubble-other);
+  border: 1px solid var(--message-border, rgba(255, 255, 255, 0.12));
+  background: var(--message-bg, var(--bubble-other));
   animation: slideUp 0.2s ease;
   position: relative;
 }
 
 .message.own {
   margin-left: auto;
-  background: var(--bubble-own);
-  border-color: rgba(147, 197, 253, 0.36);
+  background: var(--message-bg-own, var(--bubble-own));
+  border-color: var(--message-border-own, rgba(147, 197, 253, 0.36));
 }
 
 .message-author {

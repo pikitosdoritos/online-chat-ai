@@ -70,6 +70,17 @@ function getMessageColor(message) {
   return message.user_color || getUserColor(message.username);
 }
 
+function hexToRgba(hexColor, alpha) {
+  const clean = (hexColor || "").replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) {
+    return `rgba(255, 255, 255, ${alpha})`;
+  }
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function renderParticipants(participants) {
   participantsList.innerHTML = "";
   for (const participant of participants) {
@@ -148,6 +159,7 @@ function messageTemplate(message, isOwnMessage = false) {
 
 function createOrUpdateMessage(message) {
   const isOwnMessage = message.username === username;
+  const baseColor = getMessageColor(message);
   let item = document.querySelector(`[data-message-id="${message.id}"]`);
   if (!item) {
     item = document.createElement("li");
@@ -155,6 +167,10 @@ function createOrUpdateMessage(message) {
     messageList.appendChild(item);
   }
   item.className = `message ${isOwnMessage ? "own" : ""} ${message.deleted ? "deleted" : ""}`;
+  item.style.setProperty("--message-bg", hexToRgba(baseColor, 0.12));
+  item.style.setProperty("--message-border", hexToRgba(baseColor, 0.33));
+  item.style.setProperty("--message-bg-own", hexToRgba(baseColor, 0.2));
+  item.style.setProperty("--message-border-own", hexToRgba(baseColor, 0.5));
   item.innerHTML = messageTemplate(message, isOwnMessage);
   messageList.scrollTop = messageList.scrollHeight;
 }
