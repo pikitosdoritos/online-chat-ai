@@ -467,7 +467,15 @@ button.action-btn.danger {
 }
 
 .modal-compact {
-  width: min(460px, calc(100% - 32px));
+  width: min(620px, calc(100% - 32px));
+}
+
+.dialog-content {
+  padding: 28px;
+}
+
+#editInput {
+  width: 100%;
 }
 
 .dialog-actions {
