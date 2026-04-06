@@ -315,7 +315,6 @@ body {
   display: block;
   position: sticky;
   bottom: 0;
-  background: inherit;
 }
 
 .input-stack {
