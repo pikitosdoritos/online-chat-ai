@@ -73,21 +73,19 @@
       </div>
     </section>
 
-    <section id="editModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
-      <div class="modal-card modal-compact">
+    <dialog id="editModal" class="app-dialog">
+      <form id="editForm" method="dialog" class="modal-card modal-compact dialog-content username-form">
         <h2>Edit message</h2>
-        <form id="editForm" class="username-form">
-          <input id="editInput" type="text" maxlength="1000" required />
-          <div class="dialog-actions">
-            <button type="button" id="editCancelBtn" class="secondary-btn">Cancel</button>
-            <button type="submit">Save</button>
-          </div>
-        </form>
-      </div>
-    </section>
+        <input id="editInput" type="text" maxlength="1000" required />
+        <div class="dialog-actions">
+          <button type="button" id="editCancelBtn" class="secondary-btn">Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
 
-    <section id="deleteModal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
-      <div class="modal-card modal-compact">
+    <dialog id="deleteModal" class="app-dialog">
+      <div class="modal-card modal-compact dialog-content">
         <h2>Delete message?</h2>
         <p>This action cannot be undone.</p>
         <div class="dialog-actions">
@@ -95,7 +93,7 @@
           <button type="button" id="deleteConfirmBtn" class="danger-btn">Delete</button>
         </div>
       </div>
-    </section>
+    </dialog>
 
     <script src="/frontend/app.js"></script>
   </body>

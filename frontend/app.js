@@ -339,7 +339,11 @@ function closeAllMessageMenus() {
 function openEditDialog(messageId, currentText) {
   activeMessageId = messageId;
   editInput.value = currentText || "";
-  editModal.classList.remove("hidden");
+  if (typeof editModal.showModal === "function") {
+    editModal.showModal();
+  } else {
+    editModal.classList.remove("hidden");
+  }
   setTimeout(() => {
     editInput.focus();
     editInput.select();
@@ -348,18 +352,30 @@ function openEditDialog(messageId, currentText) {
 
 function closeEditDialog() {
   activeMessageId = null;
-  editModal.classList.add("hidden");
+  if (typeof editModal.close === "function" && editModal.open) {
+    editModal.close();
+  } else {
+    editModal.classList.add("hidden");
+  }
   editInput.value = "";
 }
 
 function openDeleteDialog(messageId) {
   activeMessageId = messageId;
-  deleteModal.classList.remove("hidden");
+  if (typeof deleteModal.showModal === "function") {
+    deleteModal.showModal();
+  } else {
+    deleteModal.classList.remove("hidden");
+  }
 }
 
 function closeDeleteDialog() {
   activeMessageId = null;
-  deleteModal.classList.add("hidden");
+  if (typeof deleteModal.close === "function" && deleteModal.open) {
+    deleteModal.close();
+  } else {
+    deleteModal.classList.add("hidden");
+  }
 }
 
 async function startChatSession(chosenUsername) {
@@ -531,15 +547,25 @@ document.addEventListener("click", (event) => {
 });
 
 editModal.addEventListener("click", (event) => {
-  if (event.target === editModal) {
+  if (event.target === editModal && editModal.open) {
     closeEditDialog();
   }
 });
 
 deleteModal.addEventListener("click", (event) => {
-  if (event.target === deleteModal) {
+  if (event.target === deleteModal && deleteModal.open) {
     closeDeleteDialog();
   }
+});
+
+editModal.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeEditDialog();
+});
+
+deleteModal.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeDeleteDialog();
 });
 
 const rememberedUsername = localStorage.getItem(USERNAME_STORAGE_KEY);
